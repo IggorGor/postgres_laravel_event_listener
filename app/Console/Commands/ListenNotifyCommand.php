@@ -22,11 +22,6 @@ class ListenNotifyCommand extends Command
     {
         $this->hasPcntl = extension_loaded('pcntl');
 
-        if ($this->hasPcntl) {
-            pcntl_signal(SIGINT, [$this, 'handleSignal']);
-            pcntl_signal(SIGTERM, [$this, 'handleSignal']);
-        }
-
         $pdo = DB::connection()->getPdo();
         $pdo->exec("LISTEN my_event");
         $this->info('Start listening');
@@ -42,25 +37,15 @@ class ListenNotifyCommand extends Command
             }
 
             if ($this->hasPcntl) {
-                pcntl_signal_dispatch();
+                $this->trap([SIGINT, SIGTERM], function () {
+                    $this->info( PHP_EOL . 'Received stop signal, shutting down...');
+                    $this->running = false;
+                });
             }
         }
 
         return 0;
 
-    }
-
-    private function handleSignal(int $signal): void
-    {
-        switch ($signal) {
-            case SIGINT:
-            case SIGTERM:
-                $this->info( PHP_EOL . 'Received stop signal, shutting down...');
-                $this->running = false;
-                break;
-
-            default:
-        }
     }
 
 }
